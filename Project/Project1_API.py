@@ -46,4 +46,8 @@ def vote():
     except:
         return jsonify({'status': 'fail'})
 
+# @app.route('/abc', methods=['GET'])
+# def abc():
+#     return jsonify({'status':'success'})
+
 app.run()
