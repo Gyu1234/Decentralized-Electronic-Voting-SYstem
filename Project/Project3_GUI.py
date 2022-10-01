@@ -62,22 +62,23 @@ class Tab1(QWidget):
 
 
 class Tab2(QWidget):
+    def __init__(self):
+        super().__init__()
 
+        # self.menu_group_box = QGroupBox('메뉴')
+        #
+        # self.Vote_button = QPushButton('투표 조회')
+        #
+        # self.hbox_layout = QHBoxLayout()
+        # self.hbox_layout.addWidget(self.Vote_button)
+        #
+        # self.group_box.setLayout(self.hbox_layout)
+        #
+        #
+        # self.vote_layout = QGridLayout()
+        self.vote_layout_layout.addWidget(self.menu_group_box, 0, 0, 1, 2)
+        self.setLayout(self.vote_layout)
 
-# self.menu_group_box = QGroupBox('메뉴')
-#
-# self.Vote_button = QPushButton('투표 조회')
-#
-# self.hbox_layout = QHBoxLayout()
-# self.hbox_layout.addWidget(self.Vote_button)
-#
-# self.group_box.setLayout(self.hbox_layout)
-#
-#
-# self.vote_layout = QGridLayout()
-# self.vote_layout_layout.addWidget(self.menu_group_box, 0, 0, 1, 2)
-#
-# self.setLayout(self.vote_layout)
 
 
 class GUI(QWidget):
