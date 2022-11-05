@@ -201,4 +201,131 @@ class Tab1(QWidget):
         self.option3_progressbar.setRange(0, self.vote_list[self.current_vote_id]['total_vote'])
         self.option3_progressbar.setValue(self.vote_list[self.current_vote_id]['vote_count'][option3])
 
-    
+    def vote1(self):
+        block = {
+            'transaction': {
+                'type': 'vote',
+                'data': {
+                    'id': self.current_vote_id,
+                    'vote': self.option1_button.text()
+                }
+            },
+            'author': self.devs.public_key.to_pem().decode(),
+            'previous_hash': self.devs.chain[-1]['hash']
+        }
+        block['hash'] = get_block_hash(block)
+        block['signature'] = get_block_signature(block, self.devs.private_key)
+        self.devs.chain.append(block)
+        for node in self.devs.nodes.copy():
+            try:
+                node[0].sendall(json.dumps(block).encode())
+            except:
+                self.devs.nodes.remove(node)
+        self.update_vote_list()
+
+    def vote2(self):
+        block = {
+            'transaction': {
+                'type': 'vote',
+                'data': {
+                    'id': self.current_vote_id,
+                    'vote': self.option2_button.text()
+                }
+            },
+            'author': self.devs.public_key.to_pem().decode(),
+            'previous_hash': self.devs.chain[-1]['hash']
+        }
+        block['hash'] = get_block_hash(block)
+        block['signature'] = get_block_signature(block, self.devs.private_key)
+        self.devs.chain.append(block)
+        for node in self.nodes.copy():
+            try:
+                node[0].sendall(json.dumps(block).encode())
+            except:
+                self.devs.nodes.remove(node)
+        self.update_vote_list()
+
+    def vote3(self):
+        block = {
+            'transaction': {
+                'type': 'vote',
+                'data': {
+                    'id': self.current_vote_id,
+                    'vote': self.option3_button.text()
+                }
+            },
+            'author': self.devs.public_key.to_pem().decode(),
+            'previous_hash': self.devs.chain[-1]['hash']
+        }
+        block['hash'] = get_block_hash(block)
+        block['signature'] = get_block_signature(block, self.devs.private_key)
+        self.devs.chain.append(block)
+        for node in self.nodes.copy():
+            try:
+                node[0].sendall(json.dumps(block).encode())
+            except:
+                self.devs.nodes.remove(node)
+        self.update_vote_list()
+
+    class Tab2(QWidget):
+        def __init__(self, devs):
+            super().__init__()
+
+            self.devs = devs
+
+            self.form_layout = QFormLayout()
+
+            self.question_line_edit = QLineEdit()
+
+            self.option1_line_edit = QLineEdit()
+            self.option2_line_edit = QLineEdit()
+            self.option3_line_edit = QLineEdit()
+
+            self.publish_clear_layout = QHBoxLayout()
+            self.publish_button = QPushButton('게시')
+            self.publish_button.clicked.connect(self.publish_form)
+            self.clear_button = QPushButton('초기화')
+            self.clear_button.clicked.connect(self.clear_form)
+            self.publish_clear_layout.addWidget(self.publish_button)
+            self.publish_clear_layout.addWidget(self.clear_button)
+
+            self.form_layout.addRow('질문: ', self.question_line_edit)
+            self.form_layout.addRow('선택지: ', self.option1_line_edit)
+            self.form_layout.addRow('', self.option2_line_edit)
+            self.form_layout.addRow('', self.option3_line_edit)
+            self.form_layout.addRow('', self.publish_clear_layout)
+
+            self.setLayout(self.form_layout)
+
+        def publish_form(self):
+            block = {
+                'transaction': {
+                    'type': 'open',
+                    'data': {
+                        'id': str(uuid.uuid4()),
+                        'question': self.question_line_edit.text(),
+                        'options': [
+                            self.option1_line_edit.text(),
+                            self.option2_line_edit.text(),
+                            self.option3_line_edit.text()
+                        ]
+                    }
+                },
+                'author': self.devs.public_key.to_pem().decode(),
+                'previous_hash': self.devs.chain[-1]['hash']
+            }
+            block['hash'] = get_block_hash(block)
+            block['signature'] = get_block_signature(block, self.devs.private_key)
+            self.devs.chain.append(block)
+            for node in self.devs.node.copy():
+                try:
+                    node[0].sendall(json.dumps(block).encode())
+                except:
+                    self.devs.nodes.remove(node)
+            self.devs.tab1.update_vote_list()
+
+        def clear_form(self):
+            self.question_line_edit.setText('')
+            self.option1_line_edit.setText('')
+            self.option2_line_edit.setText('')
+            self.option3_line_edit.setText('')
