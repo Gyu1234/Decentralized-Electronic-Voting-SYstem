@@ -1,12 +1,19 @@
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
-
 import sys
-
 import json
 import socket
 import uuid
 import hashlib
+
+
+def get_block_hash(block):
+    data = dict()
+    data['type'] = block['transaction']['type']
+    data['data'] = sorted(block['transaction']['data'].copy().items())
+    data = sorted(data.items())
+    return hashlib.sha256(str(data).encode()).hexdigest()
+
 
 class Tab1(QWidget):
     def __init__(self, devs):
@@ -14,7 +21,7 @@ class Tab1(QWidget):
         self.devs = devs
         self.current_vote_id = -1
 
-        self.vote_list_group_box = QGroupBox('투표 목록')
+        self.vote_list_group_box =  QGroupBox('투표 목록')
         self.vote_list = dict()
         self.vote_list_widget = QListWidget()
         self.vote_list_widget.clicked.connect(self.select_vote)
@@ -25,10 +32,10 @@ class Tab1(QWidget):
         self.vote_group_box = QGroupBox('투표')
         self.question_label = QLabel(self)
         self.option1_button = QPushButton()
-        self.option1_button.clicked.connect(self.vote1)
         self.option2_button = QPushButton()
-        self.option2_button.clicked.connect(self.vote2)
         self.option3_button = QPushButton()
+        self.option1_button.clicked.connect(self.vote1)
+        self.option2_button.clicked.connect(self.vote2)
         self.option3_button.clicked.connect(self.vote3)
         self.vote_layout = QVBoxLayout()
         self.vote_layout.addWidget(self.question_label)
@@ -60,18 +67,18 @@ class Tab1(QWidget):
         self.vote_list.clear()
         self.vote_list_widget.clear()
         for block in self.devs.chain:
-            if block['type'] == 'open':
-                vote_id = block['data']['id']
-                self.vote_list_widget.addItem(vote_id)
-                self.vote_list[vote_id] = block['data']
-                self.vote_list[vote_id]['total_vote'] = 0
-                self.vote_list[vote_id]['vote_count'] = dict()
-                for option in block['data']['options']:
-                    self.vote_list[vote_id]['vote_count'][option] = 0
-            elif block['type'] == 'vote':
-                vote_id = block['data']['id']
-                self.vote_list[vote_id]['total_vote'] += 1
-                self.vote_list[vote_id]['vote_count'][block['data']['vote']] += 1
+            if block['transaction']['type'] == 'open':
+                id = block['transaction']['data']['id']
+                self.vote_list_widget.addItem(id)
+                self.vote_list[id] = block['transaction']['data'].copy()
+                self.vote_list[id]['total_vote'] = 0
+                self.vote_list[id]['vote_count'] = dict()
+                for option in block['transaction']['data']['options']:
+                    self.vote_list[id]['vote_count'][option] = 0
+            elif block['transaction']['type'] == 'vote':
+                id = block['transaction']['data']['id']
+                self.vote_list[id]['total_vote'] += 1
+                self.vote_list[id]['vote_count'][block['transaction']['data']['vote']] += 1
         self.update_vote()
 
     def select_vote(self):
@@ -81,32 +88,34 @@ class Tab1(QWidget):
     def update_vote(self):
         if self.current_vote_id not in self.vote_list:
             return
-
         self.question_label.setText(self.vote_list[self.current_vote_id]['question'])
 
-        self.option1_button.setText(self.vote_list[self.current_vote_id]['options'][0])
+        option1 = self.vote_list[self.current_vote_id]['options'][0]
+        self.option1_button.setText(option1)
         self.option1_progressbar.setRange(0, self.vote_list[self.current_vote_id]['total_vote'])
-        option1_text = self.vote_list[self.current_vote_id]['options'][0]
-        self.option1_progressbar.setValue(self.vote_list[self.current_vote_id]['vote_count'][option1_text])
+        self.option1_progressbar.setValue(self.vote_list[self.current_vote_id]['vote_count'][option1])
 
-        self.option2_button.setText(self.vote_list[self.current_vote_id]['options'][1])
+        option2 = self.vote_list[self.current_vote_id]['options'][1]
+        self.option2_button.setText(option2)
         self.option2_progressbar.setRange(0, self.vote_list[self.current_vote_id]['total_vote'])
-        option2_text = self.vote_list[self.current_vote_id]['options'][1]
-        self.option2_progressbar.setValue(self.vote_list[self.current_vote_id]['vote_count'][option2_text])
+        self.option2_progressbar.setValue(self.vote_list[self.current_vote_id]['vote_count'][option2])
 
-        self.option3_button.setText(self.vote_list[self.current_vote_id]['options'][2])
+        option3 = self.vote_list[self.current_vote_id]['options'][2]
+        self.option3_button.setText(option3)
         self.option3_progressbar.setRange(0, self.vote_list[self.current_vote_id]['total_vote'])
-        option3_text = self.vote_list[self.current_vote_id]['options'][2]
-        self.option3_progressbar.setValue(self.vote_list[self.current_vote_id]['vote_count'][option3_text])
+        self.option3_progressbar.setValue(self.vote_list[self.current_vote_id]['vote_count'][option3])
 
     def vote1(self):
         block = {
-            'type': 'vote',
-            'data': {
-                'id': self.current_vote_id,
-                'vote': self.option1_button.text()
+            'transaction': {
+                'type': 'vote',
+                'data': {
+                    'id': self.current_vote_id,
+                    'vote': self.option1_button.text()
+                }
             }
         }
+        block['hash'] = get_block_hash(block)
         self.devs.chain.append(block)
         for node in self.devs.nodes.copy():
             try:
@@ -117,12 +126,15 @@ class Tab1(QWidget):
 
     def vote2(self):
         block = {
-            'type': 'vote',
-            'data': {
-                'id': self.current_vote_id,
-                'vote': self.option2_button.text()
+            'transaction': {
+                'type': 'vote',
+                'data': {
+                    'id': self.current_vote_id,
+                    'vote': self.option2_button.text()
+                }
             }
         }
+        block['hash'] = get_block_hash(block)
         self.devs.chain.append(block)
         for node in self.devs.nodes.copy():
             try:
@@ -133,12 +145,15 @@ class Tab1(QWidget):
 
     def vote3(self):
         block = {
-            'type': 'vote',
-            'data': {
-                'id': self.current_vote_id,
-                'vote': self.option3_button.text()
+            'transaction': {
+                'type': 'vote',
+                'data': {
+                    'id': self.current_vote_id,
+                    'vote': self.option3_button.text()
+                }
             }
         }
+        block['hash'] = get_block_hash(block)
         self.devs.chain.append(block)
         for node in self.devs.nodes.copy():
             try:
@@ -162,10 +177,12 @@ class Tab2(QWidget):
         self.option3_line_edit = QLineEdit()
 
         self.publish_clear_layout = QHBoxLayout()
+
         self.publish_button = QPushButton('게시')
-        self.publish_button.clicked.connect(self.publish_vote)
+        self.publish_button.clicked.connect(self.publish_form)
         self.clear_button = QPushButton('초기화')
-        self.clear_button.clicked.connect(self.clear_vote)
+        self.clear_button.clicked.connect(self.clear_form)
+
         self.publish_clear_layout.addWidget(self.publish_button)
         self.publish_clear_layout.addWidget(self.clear_button)
 
@@ -177,19 +194,18 @@ class Tab2(QWidget):
 
         self.setLayout(self.form_layout)
 
-    def publish_vote(self):
+    def publish_form(self):
         block = {
-            'type': 'open',
-            'data': {
-                'id': str(uuid.uuid4()),
-                'question': self.question_line_edit.text(),
-                'options': [
-                    self.option1_line_edit.text(),
-                    self.option2_line_edit.text(),
-                    self.option3_line_edit.text()
-                ]
+            'transaction': {
+                'type': 'open',
+                'data': {
+                    'id': str(uuid.uuid4()),
+                    'question': self.question_line_edit.text(),
+                    'options': [self.option1_line_edit.text(), self.option2_line_edit.text(), self.option3_line_edit.text()]
+                }
             }
         }
+        block['hash'] = get_block_hash(block)
         self.devs.chain.append(block)
         for node in self.devs.nodes.copy():
             try:
@@ -197,9 +213,9 @@ class Tab2(QWidget):
             except:
                 self.devs.nodes.remove(node)
         self.devs.tab1.update_vote_list()
-        self.clear_vote()
+        self.clear_form()
 
-    def clear_vote(self):
+    def clear_form(self):
         self.question_line_edit.setText('')
         self.option1_line_edit.setText('')
         self.option2_line_edit.setText('')
@@ -213,17 +229,15 @@ class Tab3(QWidget):
 
         self.modify_button = QPushButton('변조')
         self.modify_button.clicked.connect(self.modify)
-
-        self.vbox_layout = QVBoxLayout()
-        self.vbox_layout.addWidget(self.modify_button)
-
-        self.setLayout(self.vbox_layout)
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.modify_button)
+        self.setLayout(self.layout)
 
     def modify(self):
-        self.devs.chain[-1]['type'] = 'open'
-        self.devs.chain[-1]['data']['id'] = 'hack'
-        self.devs.chain[-1]['data']['question'] = 'hack'
-        self.devs.chain[-1]['data']['options'] = ['hack1', 'hack2', 'hack3']
+        self.devs.chain[-1]['transaction']['type'] = 'open'
+        self.devs.chain[-1]['transaction']['data']['id'] = 'hack'
+        self.devs.chain[-1]['transaction']['data']['question'] = 'hack'
+        self.devs.chain[-1]['transaction']['data']['options'] = ['hack1', 'hack2', 'hack3']
         self.devs.tab1.update_vote_list()
 
 
@@ -248,40 +262,35 @@ class SocketReceiver(QThread):
                 break
             print(f'{self.address} 데이터 수신: {message}')
             data = json.loads(message)
-            if data['type'] == 'connect':
+            if data['transaction']['type'] == 'connect':
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect(('127.0.0.1', data['data']['port']))
+                s.connect(('127.0.0.1', data['transaction']['data']['port']))
                 block = {
-                    'type': 'list',
-                    'data': {
-                        'chain': self.devs.chain
+                    'transaction': {
+                        'type': 'list',
+                        'data': {
+                            'chain': self.devs.chain
+                        }
                     }
                 }
                 s.sendall(json.dumps(block).encode())
-                self.devs.nodes.append((s, f'127.0.0.1:{data["data"]["port"]}'))
-            elif data['type'] == 'list':
-                self.devs.chain = data['data']['chain']
+                self.devs.nodes.append((s, f'127.0.0.1:{data["transaction"]["data"]["port"]}'))
+            elif data['transaction']['type'] == 'list':
+                valid_chain = True
+                for block in data['transaction']['data']['chain']:
+                    block_hash = get_block_hash(block)
+                    if block_hash != block['hash']:
+                        print('변조 감지')
+                        valid_chain = False
+                        break
+                if valid_chain:
+                    self.devs.chain = data['transaction']['data']['chain']
                 self.update_vote_list_signal.emit()
-            elif data['type'] == 'open':
-                block = {
-                    'type': 'open',
-                    'data': {
-                        'id': data['data']['id'],
-                        'question': data['data']['question'],
-                        'options': data['data']['options']
-                    }
-                }
-                self.devs.chain.append(block)
+            elif data['transaction']['type'] == 'open':
+                self.devs.chain.append(data)
                 self.update_vote_list_signal.emit()
-            elif data['type'] == 'vote':
-                block = {
-                    'type': 'vote',
-                    'data': {
-                        'id': data['data']['id'],
-                        'vote': data['data']['vote']
-                    }
-                }
-                self.devs.chain.append(block)
+            elif data['transaction']['type'] == 'vote':
+                self.devs.chain.append(data)
                 self.update_vote_list_signal.emit()
 
 
@@ -296,7 +305,7 @@ class SocketListener(QThread):
         while True:
             connection, address = self.devs.listen_socket.accept()
             self.devs.nodes.append((connection, address))
-            print('연결 됨:', address)
+            print(f'연결 됨: {address}')
             self.receive_thread = SocketReceiver(self.devs, connection, address)
             self.receive_thread.update_vote_list_signal.connect(self.update_vote_list)
             self.receive_thread.start()
@@ -313,7 +322,7 @@ class DecentralizedElectronicVotingSystem(QWidget):
         self.chain = []
         self.nodes = []
 
-        self.setWindowTitle('탈중앙 전자 투표 시스템')
+        self.setWindowTitle('탈중앙 블록체인 투표 시스템')
 
         self.tab1 = Tab1(self)
         self.tab2 = Tab2(self)
@@ -322,40 +331,43 @@ class DecentralizedElectronicVotingSystem(QWidget):
         self.tabs = QTabWidget()
         self.tabs.addTab(self.tab1, '투표')
         self.tabs.addTab(self.tab2, '투표 생성')
-        self.tabs.addTab(self.tab3, 'Hack')
+        self.tabs.addTab(self.tab3, 'hack')
 
-        self.vbox_layout = QVBoxLayout()
-        self.vbox_layout.addWidget(self.tabs)
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(self.tabs)
 
-        self.setLayout(self.vbox_layout)
+        self.setLayout(self.layout)
 
-        port = 6000
+        self.port = 6000
         while True:
             try:
                 self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.listen_socket.bind(('127.0.0.1', port))
+                self.listen_socket.bind(('127.0.0.1', self.port))
                 self.listen_socket.listen(1)
-                print(f'{port}포트 연결 대기')
+                print(f'{self.port}포트 연결 대기')
                 break
             except:
-                port += 1
+                self.port += 1
 
         self.listen_thread = SocketListener(self)
         self.listen_thread.update_vote_list_signal.connect(self.update_vote_list)
         self.listen_thread.start()
 
         for p in range(6000, 6005):
-            if p == port:
+            if p == self.port:
                 continue
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect(('127.0.0.1', p))
-                s.sendall(json.dumps({
-                    'type': 'connect',
-                    'data': {
-                        'port': port
+                block = {
+                    'transaction': {
+                        'type': 'connect',
+                        'data': {
+                            'port': self.port
+                        }
                     }
-                }).encode())
+                }
+                s.sendall(json.dumps(block).encode())
                 self.nodes.append((s, f'127.0.0.1:{p}'))
             except:
                 pass
@@ -376,43 +388,3 @@ if __name__ == '__main__':
     devs = DecentralizedElectronicVotingSystem()
     devs.show()
     sys.exit(app.exec_())
-
-
-def get_block_hash(block):
-    data = dict()
-    data['type'] = block['transaction']['type']
-    data['data'] = sorted(block['transaction']['data'].copy().items())
-    data = sorted(data.items())
-    return hashlib.sha256(str(data).encode()).hexdigest()
-
-
-chain = []
-
-block1 = {
-    'transaction': {
-        'type': 'open',
-        'data': {
-            'id': '투표 ID',
-            'question': '투표 질문',
-            'options': ['투표 항목1', '투표 항목2', '투표 항목3']
-        }
-    }
-}
-block1['hash'] = get_block_hash(block1)
-
-chain.append(block1)
-
-block2 = {
-    'transaction': {
-        'type': 'vote',
-        'data': {
-            'id': '투표 ID',
-            'vote': '투표 항목'
-        }
-    }
-}
-block2['hash'] = get_block_hash(block2)
-
-chain.append(block2)
-
-print(chain)
