@@ -201,3 +201,4 @@ class Tab1(QWidget):
         self.option3_progressbar.setRange(0, self.vote_list[self.current_vote_id]['total_vote'])
         self.option3_progressbar.setValue(self.vote_list[self.current_vote_id]['vote_count'][option3])
 
+    
